@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>chatgpt-question-navigator</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101113;
+      --surface: #181a1d;
+      --surface-2: #202328;
+      --surface-3: #252a30;
+      --line: rgba(255, 255, 255, 0.08);
+      --line-strong: rgba(255, 255, 255, 0.16);
+      --text: #f2f3f5;
+      --muted: #a9afb8;
+      --soft: #727982;
+      --green: #10a37f;
+      --green-soft: rgba(16, 163, 127, 0.14);
+      --radius: 8px;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+      --font: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+      --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      letter-spacing: 0;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0 42px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 22px;
+      padding-bottom: 26px;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      max-width: 680px;
+      margin: 0;
+      font-size: clamp(34px, 5vw, 62px);
+      line-height: 1.02;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .lead {
+      max-width: 700px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.75;
+      text-wrap: pretty;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      padding-top: 4px;
+    }
+
+    .tag {
+      min-height: 30px;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0 11px;
+      color: rgba(169, 175, 184, 0.72);
+      background: rgba(255, 255, 255, 0.018);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    a.tag {
+      text-decoration: none;
+    }
+
+    a.tag:hover,
+    a.tag:focus-visible {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.22);
+      color: #f5f7f9;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .tag.download {
+      border-color: rgba(16, 163, 127, 0.42);
+      color: #f4fffb;
+      background: rgba(16, 163, 127, 0.15);
+      box-shadow: 0 0 0 1px rgba(16, 163, 127, 0.08) inset;
+    }
+
+    .tag-icon {
+      width: 14px;
+      height: 14px;
+      margin-right: 6px;
+      flex: 0 0 auto;
+      fill: currentColor;
+    }
+
+    .tag.download:hover,
+    .tag.download:focus-visible {
+      border-color: rgba(16, 163, 127, 0.68);
+      background: rgba(16, 163, 127, 0.24);
+    }
+
+    .demo-shell {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #15171a;
+      box-shadow: var(--shadow);
+    }
+
+    .browser-bar {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+      padding: 0 14px;
+      background: #1b1e22;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #414850;
+    }
+
+    .address {
+      min-width: 0;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      flex: 1;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0 12px;
+      color: var(--soft);
+      background: #141619;
+      font-family: var(--mono);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .demo-layout {
+      position: relative;
+      min-height: 690px;
+      padding: 0;
+      background: #212121;
+    }
+
+    .chat {
+      width: 100%;
+      min-width: 0;
+      height: 690px;
+      overflow: auto;
+      border: 0;
+      border-radius: 0;
+      background: #212121;
+      scroll-padding: 64px;
+    }
+
+    .chat-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 22px;
+      background: rgba(33, 33, 33, 0.94);
+      backdrop-filter: blur(10px);
+    }
+
+    .chat-title {
+      min-width: 0;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chat-state {
+      color: var(--soft);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .messages {
+      padding: 28px 344px 48px 28px;
+    }
+
+    .message {
+      display: flex;
+      align-items: flex-start;
+      max-width: 768px;
+      margin: 0 auto 30px;
+      transition: background 180ms ease, outline-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .message.user {
+      justify-content: flex-end;
+    }
+
+    .message.assistant {
+      justify-content: flex-start;
+    }
+
+    .avatar {
+      display: none;
+    }
+
+    .bubble {
+      min-width: 0;
+      border: 1px solid transparent;
+      border-radius: 18px;
+      padding: 8px 0;
+      color: #ececec;
+      line-height: 1.75;
+      background: transparent;
+      font-size: 16px;
+    }
+
+    .message.user .bubble {
+      max-width: min(78%, 620px);
+      border-color: rgba(255, 255, 255, 0.06);
+      padding: 10px 18px;
+      background: #2f2f2f;
+    }
+
+    .message.assistant .bubble {
+      width: 100%;
+    }
+
+    .message p {
+      margin: 0;
+    }
+
+    .message p + p {
+      margin-top: 10px;
+    }
+
+    .message.is-highlighted .bubble {
+      border-color: rgba(16, 163, 127, 0.7);
+      box-shadow: 0 0 0 7px var(--green-soft);
+      background: rgba(16, 163, 127, 0.07);
+    }
+
+    .message.assistant.is-highlighted .bubble {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .navigator {
+      position: absolute;
+      top: 74px;
+      right: 18px;
+      width: 304px;
+      height: 382px;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      overflow: hidden;
+      background: rgba(28, 29, 31, 0.9);
+      box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(10px);
+      transition: width 180ms ease;
+    }
+
+    .navigator.is-collapsed {
+      width: 74px;
+      height: auto;
+    }
+
+    .nav-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      padding: 16px 16px 14px;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .nav-title {
+      min-width: 0;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.2;
+      color: rgba(247, 247, 248, 0.96);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .icon-button {
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      border: 0;
+      border-radius: 6px;
+      color: rgba(220, 223, 227, 0.82);
+      background: transparent;
+      cursor: pointer;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .icon-button:hover,
+    .icon-button:focus-visible {
+      outline: none;
+      color: rgba(241, 243, 245, 0.96);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .nav-body {
+      min-height: 0;
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      padding: 12px 14px 14px;
+    }
+
+    .search {
+      width: 100%;
+      height: 46px;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 6px;
+      padding: 0 14px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.022);
+      outline: none;
+    }
+
+    .search::placeholder {
+      color: var(--soft);
+    }
+
+    .search:focus {
+      border-color: rgba(16, 163, 127, 0.6);
+      box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.12);
+    }
+
+    .question-list {
+      display: grid;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-gutter: stable;
+      gap: 4px;
+      margin-top: 12px;
+      padding-right: 2px;
+    }
+
+    .question-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .question-list::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.025);
+      border-radius: 999px;
+    }
+
+    .question-list::-webkit-scrollbar-thumb {
+      background: rgba(188, 194, 202, 0.38);
+      border: 2px solid rgba(28, 29, 31, 0.9);
+      border-radius: 999px;
+    }
+
+    .question-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(220, 225, 232, 0.58);
+    }
+
+    .question-button {
+      width: 100%;
+      min-height: 38px;
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      border: 0;
+      border-radius: 6px;
+      padding: 6px 6px 6px 0;
+      color: inherit;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .question-button:hover,
+    .question-button:focus-visible,
+    .question-button.is-active {
+      outline: none;
+      background: rgba(255, 255, 255, 0.055);
+    }
+
+    .question-button.is-active .question-text {
+      color: #f3f6f8;
+    }
+
+    .question-number {
+      color: var(--soft);
+      font-family: var(--mono);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .question-text {
+      min-width: 0;
+      color: #d7dce1;
+      font-size: 13px;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .empty {
+      display: none;
+      margin-top: 16px;
+      color: var(--soft);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .empty.is-visible {
+      display: block;
+    }
+
+    .status {
+      min-height: 18px;
+      margin-top: 12px;
+      color: var(--green);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .navigator.is-collapsed .nav-title,
+    .navigator.is-collapsed .nav-body,
+    .navigator.is-collapsed .refresh-button {
+      display: none;
+    }
+
+    .navigator.is-collapsed .nav-head {
+      justify-content: center;
+      border-bottom: 0;
+      padding: 8px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .info {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .info h2 {
+      margin: 0 0 9px;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    .info p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.72;
+    }
+
+    .code-note {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      color: var(--muted);
+      background: #111315;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.7;
+      overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 900px) {
+      .topbar,
+      .demo-layout,
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        display: block;
+      }
+
+      .tags {
+        justify-content: flex-start;
+        margin-top: 18px;
+      }
+
+      .demo-layout {
+        display: block;
+      }
+
+      .chat {
+        height: 610px;
+      }
+
+      .navigator {
+        position: absolute;
+        top: 76px;
+        right: 26px;
+        width: min(304px, calc(100% - 52px));
+      }
+
+      .navigator.is-collapsed {
+        width: 74px;
+      }
+
+      .messages {
+        padding-right: 20px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .page {
+        width: min(100% - 20px, 1180px);
+        padding-top: 24px;
+      }
+
+      .demo-layout {
+        padding: 10px;
+      }
+
+      .chat {
+        height: 650px;
+      }
+
+      .chat-head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .messages {
+        padding: 18px 12px 28px;
+      }
+
+      .message {
+        grid-template-columns: 28px minmax(0, 1fr);
+        gap: 9px;
+      }
+
+      .avatar {
+        width: 28px;
+        height: 28px;
+      }
+
+      .bubble {
+        padding: 12px;
+        font-size: 14px;
+      }
+
+      .navigator {
+        top: 90px;
+        right: 16px;
+        width: min(282px, calc(100% - 32px));
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        transition-duration: 1ms !important;
+        animation-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Tampermonkey userscript</p>
+        <h1>ChatGPT 问题导航器</h1>
+        <p class="lead">把长对话里的每一次提问整理成右侧目录，点击就能回到对应位置。适合反复查找上下文、复盘需求和继续追问。</p>
+      </div>
+      <div class="tags" aria-label="项目标签">
+        <a class="tag download" href="https://github.com/JianJroh/chatgpt-question-navigator" target="_blank" rel="noreferrer">
+          <svg class="tag-icon" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.68 0 8.22c0 3.63 2.29 6.71 5.47 7.8.4.08.55-.18.55-.4 0-.2-.01-.85-.01-1.55-2.01.38-2.53-.5-2.69-.96-.09-.24-.48-.96-.82-1.16-.28-.16-.68-.55-.01-.56.63-.01 1.08.59 1.23.84.72 1.24 1.87.89 2.33.68.07-.53.28-.89.51-1.09-1.78-.21-3.64-.91-3.64-4.05 0-.89.31-1.63.82-2.2-.08-.21-.36-1.04.08-2.17 0 0 .67-.22 2.2.84A7.43 7.43 0 0 1 8 3.96c.68 0 1.36.09 2 .28 1.53-1.06 2.2-.84 2.2-.84.44 1.13.16 1.96.08 2.17.51.57.82 1.3.82 2.2 0 3.15-1.87 3.84-3.65 4.05.29.26.54.75.54 1.52 0 1.09-.01 1.97-.01 2.24 0 .22.15.48.55.4A8.1 8.1 0 0 0 16 8.22C16 3.68 12.42 0 8 0Z"/>
+          </svg>
+          GitHub仓库
+        </a>
+        <span class="tag">Tampermonkey</span>
+        <span class="tag">ChatGPT</span>
+        <span class="tag">v1.3.1</span>
+      </div>
+    </header>
+
+    <section class="demo-shell" aria-label="插件功能演示">
+      <div class="browser-bar" aria-hidden="true">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="address">https://chatgpt.com/c/demo-long-conversation</span>
+      </div>
+
+      <div class="demo-layout">
+        <section class="chat" id="chat" aria-label="模拟 ChatGPT 长对话">
+          <div class="chat-head">
+            <div class="chat-title">项目复盘：把对话变成可导航的工作台</div>
+            <div class="chat-state">模拟长对话 · 8 个问题</div>
+          </div>
+
+          <div class="messages">
+            <article class="message user" id="question-1" data-question="1">
+              <div class="avatar">我</div>
+              <div class="bubble">
+                <p>帮我梳理一下这个脚本最核心的使用场景是什么？我想知道它解决的是哪个具体痛点。</p>
+              </div>
+            </article>
+            <article class="message assistant">
+              <div class="avatar">AI</div>
+              <div class="bubble">
+                <p>核心场景是长对话回溯。用户在 ChatGPT 里连续讨论需求、代码和方案后，经常需要回到某个早先的问题；脚本把这些用户问题抽成目录，降低查找成本。</p>
+              </div>
+            </article>
+
+            <article class="message user" id="question-install" data-question="install">
+              <div class="avatar">我</div>
+              <div class="bubble">
+                <p>这个脚本如何安装？</p>
+              </div>
+            </article>
+            <article class="message assistant">
+              <div class="avatar">AI</div>
+              <div class="bubble">
+                <p>先在浏览器安装 Tampermonkey，然后新建脚本，把 <code>chatgpt-question-navigator.user.js</code> 的内容粘贴进去并保存。打开 ChatGPT 对话页后，右侧会自动出现“探赜索隐”浮窗。</p>
+              </div>
+            </article>
+
+            <article class="message user" id="question-2" data-question="2">
+              <div class="avatar">我</div>
+              <div class="bubble">
+                <p>如果把它做成右侧浮窗，界面应该尽量小还是信息完整一点？</p>
+              </div>
+            </article>
+            <article class="message assistant">
+              <div class="avatar">AI</div>
+              <div class="bubble">
+                <p>右侧浮窗应该保持轻量。默认展示问题序号和单行摘要，保留搜索、刷新、折叠这些高频操作；完整内容通过标题提示和点击定位补足。</p>
+              </div>
+            </article>
+
+            <article class="message user" id="question-3" data-question="3">
+              <div class="avatar">我</div>
+              <div class="bubble">
+                <p>问题列表如何在 ChatGPT 页面更新时保持同步？</p>
+              </div>
+            </article>
+            <article class="message assistant">
+              <div class="avatar">AI</div>
+              <div class="bubble">
+                <p>脚本监听页面 DOM 变化和地址变化。当新消息出现、对话切换或历史记录变动时，重新合并可见问题，再渲染列表，避免目录停留在旧会话。</p>
+              </div>
+            </article>
+
+            <article class="message user" id="question-4" data-question="4">
+              <div class="avatar">我</div>
+              <div class="bubble">
+                <p>点击目录项之后，怎样让用户确认自己已经跳到正确的问题？</p>
+              </div>
+            </article>
+            <article class="message assistant">
+              <div class="avatar">AI</div>
+              <div class="bubble">
+                <p>滚动后给目标问题短暂高亮，比只移动视口更明确。真实脚本里会把目标滚动到接近视口中央，并用绿色描边和柔和阴影做定位反馈。</p>
+              </div>
+            </article>
+
+            <article class="message user" id="question-5" data-question="5">
+              <div class="avatar">我</div>
+              <div class="bubble">
+                <p>如果对话很长，用户只记得几个关键词，要怎么快速找到对应问题？</p>
+              </div>
+            </article>
+            <article class="message assistant">
+              <div class="avatar">AI</div>
+              <div class="bubble">
+                <p>导航器提供搜索框，直接按问题文本过滤。它不改变原始对话，只是在目录层做筛选，所以交互成本低，也不会影响 ChatGPT 页面本身。</p>
+              </div>
+            </article>
+
+            <article class="message user" id="question-6" data-question="6">
+              <div class="avatar">我</div>
+              <div class="bubble">
+                <p>这个脚本对 ChatGPT 页面结构变化有没有做兼容？</p>
+              </div>
+            </article>
+            <article class="message assistant">
+              <div class="avatar">AI</div>
+              <div class="bubble">
+                <p>它使用多组用户消息选择器，并优先查找 conversation turn、article 或消息节点本身作为滚动目标。这样能覆盖 ChatGPT 页面结构的小幅变化。</p>
+              </div>
+            </article>
+
+            <article class="message user" id="question-7" data-question="7">
+              <div class="avatar">我</div>
+              <div class="bubble">
+                <p>为什么要把浮窗做成 Shadow DOM，而不是直接往页面里插普通元素？</p>
+              </div>
+            </article>
+            <article class="message assistant">
+              <div class="avatar">AI</div>
+              <div class="bubble">
+                <p>Shadow DOM 可以隔离样式，让插件 UI 不被 ChatGPT 页面样式污染，也减少插件样式影响原页面的风险。对用户脚本来说，这是更稳的界面边界。</p>
+              </div>
+            </article>
+
+          </div>
+        </section>
+
+        <aside class="navigator" id="navigator" aria-label="探赜索隐">
+          <div class="nav-head">
+            <div class="nav-title">探赜索隐</div>
+            <div class="nav-actions">
+              <button class="icon-button refresh-button" id="refreshButton" type="button" aria-label="刷新问题列表" title="刷新问题列表">
+                ↻
+              </button>
+              <button class="icon-button" id="collapseButton" type="button" aria-label="折叠问题导航" title="折叠问题导航">
+                ‹
+              </button>
+            </div>
+          </div>
+          <div class="nav-body">
+            <input class="search" id="searchInput" type="search" placeholder="搜索提问内容" aria-label="搜索提问内容" autocomplete="off">
+            <div class="question-list" id="questionList"></div>
+            <div class="empty" id="emptyState">没有匹配的问题</div>
+            <div class="status" id="statusText" aria-live="polite"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="info-grid" aria-label="作品说明">
+      <div class="info">
+        <h2>解决的问题</h2>
+        <p>ChatGPT 长对话越聊越长，早期问题会被上下文淹没。这个插件把提问抽出来，形成稳定的导航入口。</p>
+      </div>
+      <div class="info">
+        <h2>核心能力</h2>
+        <p>自动收集用户问题，支持搜索过滤、点击定位、目标高亮、手动刷新和折叠悬浮窗。</p>
+      </div>
+      <div class="info">
+        <h2>实现要点</h2>
+        <p>基于 Tampermonkey 注入 ChatGPT 页面，用 Shadow DOM 承载浮窗，并监听页面与路由变化同步列表。</p>
+      </div>
+    </section>
+
+    <div class="code-note">运行环境：Tampermonkey · 匹配 chatgpt.com / chat.openai.com · 当前脚本版本 v1.3.1</div>
+  </main>
+
+  <script>
+    const chat = document.querySelector('#chat');
+    const navigatorEl = document.querySelector('#navigator');
+    const questionList = document.querySelector('#questionList');
+    const searchInput = document.querySelector('#searchInput');
+    const refreshButton = document.querySelector('#refreshButton');
+    const collapseButton = document.querySelector('#collapseButton');
+    const emptyState = document.querySelector('#emptyState');
+    const statusText = document.querySelector('#statusText');
+    const questions = Array.from(document.querySelectorAll('[data-question]')).map((el, index) => ({
+      id: el.id,
+      number: index + 1,
+      text: el.querySelector('.bubble').innerText.trim().replace(/\s+/g, ' ')
+    }));
+
+    let activeId = '';
+    let statusTimer = 0;
+    let highlightTimer = 0;
+
+    function renderQuestions() {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const visible = questions.filter((item) => item.text.toLowerCase().includes(keyword));
+
+      questionList.textContent = '';
+      emptyState.classList.toggle('is-visible', visible.length === 0);
+
+      const fragment = document.createDocumentFragment();
+      visible.forEach((item) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `question-button${item.id === activeId ? ' is-active' : ''}`;
+        button.dataset.target = item.id;
+        button.title = item.text;
+
+        const number = document.createElement('span');
+        number.className = 'question-number';
+        number.textContent = String(item.number).padStart(2, '0');
+
+        const text = document.createElement('span');
+        text.className = 'question-text';
+        text.textContent = item.text;
+
+        button.append(number, text);
+        fragment.append(button);
+      });
+
+      questionList.append(fragment);
+    }
+
+    function focusQuestion(id) {
+      const target = document.getElementById(id);
+      if (!target) return;
+
+      activeId = id;
+      renderQuestions();
+
+      const chatRect = chat.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const top = chat.scrollTop + targetRect.top - chatRect.top - (chat.clientHeight - targetRect.height) / 2;
+
+      chat.scrollTo({
+        top: Math.max(0, top),
+        behavior: 'smooth'
+      });
+
+      window.clearTimeout(highlightTimer);
+      document.querySelectorAll('.message.is-highlighted').forEach((el) => el.classList.remove('is-highlighted'));
+      target.classList.add('is-highlighted');
+      highlightTimer = window.setTimeout(() => {
+        target.classList.remove('is-highlighted');
+      }, 1400);
+    }
+
+    function showStatus(text) {
+      window.clearTimeout(statusTimer);
+      statusText.textContent = text;
+      statusTimer = window.setTimeout(() => {
+        statusText.textContent = '';
+      }, 1400);
+    }
+
+    questionList.addEventListener('click', (event) => {
+      const button = event.target.closest('.question-button');
+      if (!button) return;
+      focusQuestion(button.dataset.target);
+      showStatus('已定位到对应提问');
+    });
+
+    searchInput.addEventListener('input', renderQuestions);
+
+    refreshButton.addEventListener('click', () => {
+      renderQuestions();
+      showStatus(`已刷新：${questions.length} 个问题`);
+    });
+
+    collapseButton.addEventListener('click', () => {
+      const collapsed = navigatorEl.classList.toggle('is-collapsed');
+      collapseButton.textContent = collapsed ? '›' : '‹';
+      collapseButton.title = collapsed ? '展开问题导航' : '折叠问题导航';
+      collapseButton.setAttribute('aria-label', collapseButton.title);
+    });
+
+    renderQuestions();
+  </script>
+</body>
+</html>
